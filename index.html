@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<title>Jiwa Jaya — Virtual Photobooth</title>
+<style>
+:root{--accent:#ff4f9a;--bg:#0d0d10;--card:#18181d;--text:#fff;--muted:#aaa}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#29202a,#0d0d10 55%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+.wrap{width:min(960px,100%);margin:auto;padding:18px 14px 40px}.brand{text-align:center;padding:8px 0 16px}.brand h1{margin:0;font-size:28px}.brand p{margin:6px 0;color:var(--muted)}
+.card{background:rgba(24,24,29,.92);border:1px solid #2d2d35;border-radius:24px;padding:16px;box-shadow:0 20px 60px #0007;margin-bottom:14px}
+.preview{position:relative;width:min(100%,520px);margin:auto;aspect-ratio:4/3;background:#000;border-radius:18px;overflow:hidden}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.count{position:absolute;inset:0;display:grid;place-items:center;font-size:92px;font-weight:900;text-shadow:0 4px 25px #000;pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:14px}
+button,.select{border:0;border-radius:14px;padding:12px 16px;font-weight:800;font-size:14px;cursor:pointer}
+button.primary{background:var(--accent);color:white}.dark{background:#2a2a31;color:#fff}.danger{background:#a92845;color:white}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+label{font-size:13px;color:var(--muted)}select,input[type=text]{background:#24242b;color:white;border:1px solid #3a3a44;border-radius:12px;padding:10px}
+.templates{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+.tpl{width:88px;height:110px;border-radius:14px;border:3px solid transparent;padding:7px;cursor:pointer;color:#fff;font-size:11px;font-weight:900;display:flex;align-items:end;justify-content:center}
+.tpl.active{border-color:var(--accent)}
+.t1{background:linear-gradient(#ff7ab5,#5a183c)}.t2{background:linear-gradient(#ffd36a,#7d3317)}.t3{background:linear-gradient(#7de0d1,#173d4a)}
+#result{display:none;text-align:center}.resultImg{max-width:100%;border-radius:18px;background:#fff}
+.small{font-size:12px;color:var(--muted);line-height:1.5;text-align:center}
+.qrbox{display:grid;place-items:center;background:#fff;border-radius:18px;padding:14px;width:max-content;margin:14px auto}
+#qr img{display:block}
+.hidden{display:none!important}
+hr{border:0;border-top:1px solid #2c2c34;margin:18px 0}
+.badge{display:inline-block;background:#24242b;padding:6px 10px;border-radius:99px;font-size:11px;color:#ddd}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="badge">VIRTUAL PHOTOBOOTH</div>
+    <h1>Jiwa Jaya 📸</h1>
+    <p>Foto dulu sekarang!</p>
+  </div>
+
+  <section class="card" id="cameraCard">
+    <div class="preview">
+      <video id="video" autoplay playsinline muted></video>
+      <div id="count" class="count"></div>
+    </div>
+    <div class="controls">
+      <button id="start" class="primary">📷 Mulai Kamera</button>
+      <button id="flip" class="dark">🔄 Balik Kamera</button>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label>Jumlah foto
+        <select id="shots">
+          <option value="1">1 foto</option>
+          <option value="3" selected>3 foto</option>
+          <option value="4">4 foto</option>
+        </select>
+      </label>
+      <label>Countdown
+        <select id="delay">
+          <option value="2">2 detik</option>
+          <option value="3" selected>3 detik</option>
+          <option value="5">5 detik</option>
+        </select>
+      </label>
+    </div>
+    <div class="templates" aria-label="Pilih template">
+      <div class="tpl t1 active" data-tpl="pink">PINK LAUNDRY</div>
+      <div class="tpl t2" data-tpl="sunset">SUNSET</div>
+      <div class="tpl t3" data-tpl="fresh">FRESH</div>
+    </div>
+    <div class="controls">
+      <button id="shoot" class="primary" disabled>✨ Ambil Foto</button>
+    </div>
+    <p id="status" class="small">Tekan “Mulai Kamera”, lalu izinkan akses kamera.</p>
+  </section>
+
+  <section class="card" id="result">
+    <h2>Hasil Foto 🎉</h2>
+    <canvas id="canvas" class="resultImg"></canvas>
+    <div class="controls">
+      <button id="download" class="primary">⬇️ Download Foto</button>
+      <button id="again" class="dark">📸 Foto Lagi</button>
+      <button id="share" class="dark">📤 Bagikan</button>
+    </div>
+    <p class="small">Foto diproses di perangkat ini. Versi dasar ini tidak mengunggah foto ke server.</p>
+  </section>
+
+  <section class="card">
+    <h3 style="text-align:center;margin-top:4px">QR Code Photobooth</h3>
+    <p class="small">Setelah website dipasang online, QR di bawah otomatis mengikuti alamat halaman ini.</p>
+    <div id="qr" class="qrbox"><div id="qrLoading" style="color:#111">Memuat QR…</div></div>
+    <div class="controls"><button id="downloadQR" class="dark">⬇️ Simpan QR</button></div>
+  </section>
+
+  <p class="small">© 2026 Jiwa Jaya • Virtual Photobooth</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const video=document.getElementById('video'), shoot=document.getElementById('shoot'), start=document.getElementById('start');
+const flip=document.getElementById('flip'), count=document.getElementById('count'), statusEl=document.getElementById('status');
+const result=document.getElementById('result'), cameraCard=document.getElementById('cameraCard'), canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d'); let stream=null, facing='user', photos=[], template='pink', busy=false;
+
+document.querySelectorAll('.tpl').forEach(x=>x.onclick=()=>{document.querySelectorAll('.tpl').forEach(y=>y.classList.remove('active'));x.classList.add('active');template=x.dataset.tpl});
+async function startCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1280},height:{ideal:960}},audio:false});
+    video.srcObject=stream; shoot.disabled=false; statusEl.textContent='Kamera siap. Pilih template lalu tekan Ambil Foto.';
+  }catch(e){statusEl.textContent='Kamera tidak bisa dibuka. Pastikan izin kamera diberikan dan website memakai HTTPS.'}
+}
+start.onclick=startCamera;
+flip.onclick=()=>{facing=facing==='user'?'environment':'user';startCamera()};
+
+function snap(){
+  const c=document.createElement('canvas'), w=900,h=675;c.width=w;c.height=h;
+  const x=c.getContext('2d'); x.save();
+  if(facing==='user'){x.translate(w,0);x.scale(-1,1)}
+  x.drawImage(video,0,0,w,h);x.restore(); return c;
+}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+async function takePhotos(){
+  if(busy)return;busy=true;shoot.disabled=true;photos=[];
+  const n=+document.getElementById('shots').value, d=+document.getElementById('delay').value;
+  for(let i=0;i<n;i++){
+    for(let s=d;s>0;s--){count.textContent=s;await wait(1000)}
+    count.textContent='📸'; await wait(250); photos.push(snap()); count.textContent='';
+    if(i<n-1) await wait(650);
+  }
+  render();busy=false;shoot.disabled=false;
+}
+shoot.onclick=takePhotos;
+
+function colors(){
+  return template==='pink'?{bg:'#fff4f8',band:'#ff4f9a',text:'#25131c'}:
+         template==='sunset'?{bg:'#fff2d9',band:'#f27a35',text:'#32150d'}:
+         {bg:'#eafff9',band:'#1c9c8c',text:'#0b2925'};
+}
+function render(){
+  const W=1000, pad=55, photoW=W-pad*2, photoH=Math.round(photoW*0.75), gap=22;
+  const H=pad+photos.length*photoH+(photos.length-1)*gap+170;
+  canvas.width=W;canvas.height=H;const c=colors();
+  ctx.fillStyle=c.bg;ctx.fillRect(0,0,W,H);
+  let y=pad;
+  photos.forEach(p=>{ctx.drawImage(p,pad,y,photoW,photoH);y+=photoH+gap});
+  ctx.fillStyle=c.band;ctx.fillRect(0,H-145,W,145);
+  ctx.fillStyle='#fff';ctx.font='900 48px system-ui';ctx.textAlign='center';ctx.fillText('RUANG NYUCI',W/2,H-84);
+  ctx.font='700 25px system-ui';ctx.fillText('Cuci baju nanti. Foto dulu sekarang! 📸',W/2,H-45);
+  cameraCard.style.display='none';result.style.display='block';
+}
+document.getElementById('download').onclick=()=>{
+  const a=document.createElement('a');a.download='ruang-nyuci-photobooth.jpg';a.href=canvas.toDataURL('image/jpeg',.94);a.click();
+};
+document.getElementById('again').onclick=()=>{result.style.display='none';cameraCard.style.display='block';statusEl.textContent='Siap foto lagi.'};
+document.getElementById('share').onclick=async()=>{
+  canvas.toBlob(async blob=>{
+    const file=new File([blob],'jiwa-jaya-photobooth.jpg',{type:'image/jpeg'});
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      try{await navigator.share({title:'Ruang Nyuci Photobooth',files:[file]})}catch(e){}
+    }else alert('Fitur bagikan tidak tersedia di browser ini. Gunakan Download Foto.');
+  },'image/jpeg',.94)
+};
+
+// QR
+(function(){
+  const box=document.getElementById('qr'), loading=document.getElementById('qrLoading');
+  if(location.protocol==='file:'){loading.textContent='QR aktif setelah website online.';return}
+  try{new QRCode(box,{text:location.href,width:210,height:210,colorDark:'#111',colorLight:'#fff',correctLevel:QRCode.C});loading.remove()}catch(e){loading.textContent='QR gagal dimuat'}
+})();
+document.getElementById('downloadQR').onclick=()=>{
+  const img=document.querySelector('#qr img'); if(!img){alert('QR belum siap.');return}
+  const a=document.createElement('a');a.download='qr-ruang-nyuci-photobooth.png';a.href=img.src;a.click();
+};
+</script>
+</body>
+</html>
